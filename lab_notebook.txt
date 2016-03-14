@@ -1,0 +1,55 @@
+Names: Michael Farrell, Kevin Yang
+Github: https://github.com/michaelfarrell76/CS262_LogicalClocks
+
+Lab Notebook for Constructing Logical Clocks
+
+Contents
+- Notes
+- Final Design
+- Results
+
+NOTES WHILE BUILDING
+- We decided to build the program in python in order to take advantage of third party libraries
+- To keep everything concise` in a single file we forked n processes to mimic the virtual machines
+- Tried to use fork to loop through and generate new processes however we kept running into errors with correctly exiting the program/random.randint was generating the same integer for every process. We could use the os.urandom function but that required converting from a random byte sequence to an integer between 1 and 6 and it was slightly ugly
+-Using the multiprocessing library was much easier and cleaner, the code was simplified and we were able to use functions like randint 
+-Currently the program loops through and generates n processes as specified by the -n flag, and for each new process generates the random int between 1 and 6
+-In order to setup multiple logs using the logging library, we pulled some code from stackoverflow. It seems like a better idea to have multiple logs then try to have them all write to the same log. If we did the latter, we could get weird race conditions and the logs may not actually represent the state of the system. 
+-Other than pulling the code from stackoverflow, the separate logs were relatiely simple to implement
+-Having trouble printing to individual process log files, setup generates the log files and no error is thrown when I try to log to the file but nothing is added. The general log still works after creating new logs
+-....silly error, named the logger incorrectly, thats what I get for not saving the name of the logger into a variable, now onto setting up the sockets and network queue
+-A design decision that may come up is whether to setup the listening sockets as each process is created, or have it wait until the processes are running before it sets up the connections. Im guessing we will probably have to use the latter 
+-Or maybe just one general listening? idk still looking into it, trying to use http://www.binarytides.com/python-socket-server-code-example/ as an example
+- After investigating more deeply into how to setup basic servers in python, we decided to go with the design located in the FINAL DESIGN section. 
+- Ran into some issues where sockets block the whole process, regardless of whether or not we want to start them in a separate thread. 
+- Spent a couple hours trying to build some workarounds by configuring different flags before socket setup. Little to no success was found. 
+- Tried to experiment with selects, but it seems to be a bit more trouble than it's actually worth. 
+- Discovered a library called asyncore that has the basic infrastructure for building asychronous socket service clients and servers. It's a basic built-in library from python, documentation here: https://docs.python.org/2/library/asyncore.html 
+- Able to successfully implement two servers running simultaneously that I can telnet into. Right now, they simply echo back what I send to them. I found some example code that I modified from here: https://pymotw.com/2/asyncore/. 
+- Tried to implement a different asyncore component that will asychronously send messages out to these different servers. Experimenting with this in a different file from the full clocks file. 
+- Using this asyncore component seems to be a bit of overkill in order to send a simple message. Trying to use the standard sockets library to send messages. 
+- Finally able to get messages sent to servers successfully using the sockets method. Refactored the code so that messages are sent with a simple function.
+- Trying to get two processes to send messages to each other and log each other's messages. 
+- Successfully able to get processes to send messages to each other. Now working on trying to get the values of messages saved in a process queue that is threadsafe. 
+- Had a lot of issues trying to get the messages to be received by each process. Trying to use the standard library's Queue module. 
+- After a couple hours, finally discovered that this module's Queue may not be compatible with the mutliprocessing module. Swapped out the Queue with the Multiprocessing library's implementation of the Queue. 
+- Now messages successfully send and they seem to be successfully received. Reallized that this library does not have a good way of counting the number of items in the queue. 
+- Implemented a way to count the number of items in the queue using threadsafe locks.
+- Implemented logical clocks in the way specified in the paper and in class. Each clock tick increases the logical clock by one value. Anytime a message is received, the logical clock value is the max of the current logical clock value and the one received.
+- Added beter overall logging to the code so that the clock rate, logical clock value, and the time are all stored. 
+- Did some basic experimentation with having different probabilities
+
+
+FINAL DESIGN 
+- Each virtual machine would have its own specific process. Within each virtual machine, there would be two threads. 
+	- One thread would function like a server and would listen for messages on a specific port specified at the start of the simulation. Any other threads that want to send this VM a message will be able to access the port number through a global port array. As soon as this thread connects to another VM, it spawns another thread for more connections with other VMs. 
+	- The other thread will perform the actions described by the assignment. Every clock tick it looks at the queue of messsages and processes them if there are any. If there are no messages, the virtual machine either sends the message to another process or has an internal event with some probability.
+
+RESULTS
+- Run the program by just running python clock.py
+- All experiments saved into the log folder. Each file is labeled with the process number and the probability of having an internal event. The general log file holds the interations between all the various virtual machines. 
+- For each experiment, the clock rate was fixed at either 1, 3 or 6 to accentuate the differences between the VMs. 
+- The results that we found very much follow the papers and lectures we've had on logical clocks. 
+- In cases where the probability of sending a message was particuarly low, the logical clocks seemed to be all aligned with the logical clock of the VM with the highest clock rate. This logical clock value was the true time multiplied by the clock rate. 
+- In cases where ther was a smaller variation in clock cycles, the logical clock values stayed a bit more consistent just because as might be expected.  
+- We also experimented in cases where there was a high probability of sending a message. In these cases, the logical clocks were no longer aligned. The VMs with the lowest clock rate would drift to a slightly higher logical clock rate than it would have if it were completely isolated. However, because the queue was so large for messages (>50), it would not be at the same logical clock value as the VM with the highest clock rate. In the most extreme example, the logical clock value of the VM with the clock rate of 1 would be at a logical clock value of 100. Meanwhile, the logical clock value of the VM with the hihest clock rate of 6 would be at a logical clock value of 360. 
