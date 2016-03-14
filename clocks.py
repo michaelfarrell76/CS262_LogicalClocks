@@ -155,14 +155,11 @@ if __name__ == '__main__':
         server2 = MessageServer('localhost', port_nums[1], Queue(), threading.Lock())
         server3 = MessageServer('localhost', port_nums[2], Queue(), threading.Lock())
 
-        # # Get all the machines to process queues
-        # Process(target=machine_operate, args=(server1, port_nums, random.randint(1, 6), 1)).start()
-        # Process(target=machine_operate, args=(server2, port_nums, random.randint(1, 6), 2)).start()
-        # Process(target=machine_operate, args=(server3, port_nums, random.randint(1, 6), 3)).start()
-        Process(target=machine_operate, args=(server1, port_nums, 1, 1, upper_random_num)).start()
-        Process(target=machine_operate, args=(server2, port_nums, 3, 2, upper_random_num)).start()
-        Process(target=machine_operate, args=(server3, port_nums, 6, 3, upper_random_num)).start()
-
+        # Get all the machines to process queues
+        Process(target=machine_operate, args=(server1, port_nums, random.randint(1, 6), 1, upper_random_num)).start()
+        Process(target=machine_operate, args=(server2, port_nums, random.randint(1, 6), 2, upper_random_num)).start()
+        Process(target=machine_operate, args=(server3, port_nums, random.randint(1, 6), 3, upper_random_num)).start()
+        
         time.sleep(60)
 
         server1.close()
